@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video hoá</title>
+
+<style>
+body{
+    margin:0;
+    background:black;
+    overflow:hidden;
+    font-family:-apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* container */
+.player{
+    position:relative;
+    width:100%;
+    height:100vh;
+}
+
+/* video */
+video{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+}
+
+/* overlay tap */
+.overlay{
+    position:absolute;
+    width:100%;
+    height:100%;
+    display:flex;
+}
+
+.zone{ flex:1; }
+
+/* ===== PLAY UI ===== */
+.center{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+}
+
+/* nút play iOS */
+.play-btn{
+    width:85px;
+    height:85px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.08);
+    backdrop-filter:blur(20px);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    cursor:pointer;
+    position:relative;
+}
+
+/* icon svg */
+.play-btn svg{
+    width:34px;
+    height:34px;
+    fill:white;
+    margin-left:4px;
+}
+
+/* glow */
+.play-btn::before{
+    content:"";
+    position:absolute;
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,0.25), transparent);
+    filter:blur(25px);
+}
+
+/* ripple */
+.play-btn::after{
+    content:"";
+    position:absolute;
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,0.2);
+    animation:pulse 1.6s infinite;
+}
+
+@keyframes pulse{
+    0%{transform:scale(1);opacity:0.7;}
+    100%{transform:scale(1.6);opacity:0;}
+}
+
+.play-btn:active{
+    transform:scale(0.95);
+}
+
+/* text */
+.play-text{
+    color:rgba(255,255,255,0.7);
+    font-size:13px;
+}
+
+/* ===== CONTROLS ===== */
+.controls{
+    position:absolute;
+    bottom:0;
+    width:100%;
+    padding:10px;
+    background:linear-gradient(transparent, rgba(0,0,0,0.9));
+    display:flex;
+    gap:10px;
+    align-items:center;
+    transition:0.3s;
+}
+
+.hide{ opacity:0; }
+
+button{
+    background:none;
+    border:none;
+    color:white;
+    font-size:18px;
+}
+
+/* thanh tua */
+input[type=range]{
+    flex:1;
+}
+
+/* ===== SKIP ICON ===== */
+.skip{
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:28px;
+    color:white;
+    opacity:0;
+    transition:0.3s;
+}
+
+.left{ left:20%; }
+.right{ right:20%; }
+
+.show{
+    opacity:1;
+    transform:translateY(-50%) scale(1.2);
+}
+</style>
+</head>
+
+<body>
+
+<div class="player">
+
+<video id="video" playsinline>
+    <source src="https://files.catbox.moe/2xoz1k.MOV">
+</video>
+
+<!-- PLAY -->
+<div class="center" id="playBtn" onclick="playVideo()">
+    <div class="play-btn">
+        <svg viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+        </svg>
+    </div>
+    <div class="play-text">Tap to play</div>
+</div>
+
+<!-- TAP ZONE -->
+<div class="overlay">
+    <div class="zone" id="left"></div>
+    <div class="zone" id="middle"></div>
+    <div class="zone" id="right"></div>
+</div>
+
+<!-- SKIP -->
+<div class="skip left" id="back">⏪ 10s</div>
+<div class="skip right" id="forward">10s ⏩</div>
+
+<!-- CONTROLS -->
+<div class="controls" id="controls">
+    <button onclick="togglePlay()">⏯</button>
+    <input type="range" id="seekBar" value="0">
+    <button onclick="fullScreen()">⛶</button>
+</div>
+
+</div>
+
+<script>
+const video = document.getElementById("video");
+const seekBar = document.getElementById("seekBar");
+const controls = document.getElementById("controls");
+
+const back = document.getElementById("back");
+const forward = document.getElementById("forward");
+
+let lastTap = 0;
+let timeout;
+
+// play lần đầu
+function playVideo(){
+    video.play();
+    document.getElementById("playBtn").style.display="none";
+}
+
+// play/pause
+function togglePlay(){
+    if(video.paused){
+        video.play();
+    } else {
+        video.pause();
+    }
+}
+
+// double tap
+function handleTap(side){
+    const now = Date.now();
+
+    if(now - lastTap < 300){
+        if(side === "left"){
+            video.currentTime -= 10;
+            back.classList.add("show");
+            setTimeout(()=>back.classList.remove("show"),400);
+        } else if(side === "right"){
+            video.currentTime += 10;
+            forward.classList.add("show");
+            setTimeout(()=>forward.classList.remove("show"),400);
+        }
+    }
+
+    lastTap = now;
+}
+
+// gán vùng
+document.getElementById("left").onclick = ()=>handleTap("left");
+document.getElementById("right").onclick = ()=>handleTap("right");
+document.getElementById("middle").onclick = togglePlay;
+
+// thanh tua
+video.addEventListener("timeupdate", ()=>{
+    seekBar.value = (video.currentTime/video.duration)*100 || 0;
+});
+
+seekBar.addEventListener("input", ()=>{
+    video.currentTime = (seekBar.value/100)*video.duration;
+});
+
+// fullscreen
+function fullScreen(){
+    if(video.requestFullscreen){
+        video.requestFullscreen();
+    }
+}
+
+// auto ẩn controls
+function showControls(){
+    controls.classList.remove("hide");
+    clearTimeout(timeout);
+    timeout = setTimeout(()=>{
+        controls.classList.add("hide");
+    },2000);
+}
+
+document.querySelector(".player").addEventListener("click", showControls);
+</script>
+
+</body>
+</html>
